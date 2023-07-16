@@ -13,9 +13,7 @@ use rocket::response::stream::ByteStream;
 use urlencoding::encode;
 // Our modules
 mod modules;
-use modules::config::{
-    get_website_ip, get_website_port, get_widgets_of_device, init_config, Widget,
-};
+use modules::config::{get_website_url, get_widgets_of_device, init_config, Widget};
 use modules::screenshot::take_screenshot;
 
 /// Enum containing colors supported by e-paper display
@@ -223,9 +221,8 @@ fn screenshot_paperdash_website(id: &str) {
 fn screenshot(filename: String, widgets: Vec<Widget>) {
     let web_img = take_screenshot(
         format!(
-            "http://{}:{}/?widgets={}",
-            get_website_ip(),
-            get_website_port(),
+            "{}/?widgets={}",
+            get_website_url(),
             encode(&serde_json::to_string(&widgets).unwrap())
         )
         .to_string(),

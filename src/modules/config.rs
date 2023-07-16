@@ -4,8 +4,7 @@ use std::{fs::File, io::BufReader, sync::RwLock};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
-    website_ip: String,
-    website_port: String,
+    website_url: String,
     devices: Vec<Device>,
 }
 
@@ -30,8 +29,7 @@ pub struct Option {
 // Static Config struct
 lazy_static! {
     static ref CONFIG: RwLock<Config> = RwLock::new(Config {
-        website_ip: "".to_string(),
-        website_port: "".to_string(),
+        website_url: "".to_string(),
         devices: vec![]
     });
 }
@@ -72,12 +70,7 @@ pub fn get_widgets_of_device(id: &str) -> Vec<Widget> {
     return vec![];
 }
 
-pub fn get_website_ip() -> String {
-    let website_ip: String = CONFIG.read().unwrap().website_ip.clone();
-    website_ip
-}
-
-pub fn get_website_port() -> String {
-    let website_port: String = CONFIG.read().unwrap().website_port.clone();
-    website_port
+pub fn get_website_url() -> String {
+    let website_url: String = CONFIG.read().unwrap().website_url.clone();
+    website_url
 }
