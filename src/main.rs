@@ -128,9 +128,10 @@ fn get_sub_bitmap_as_vec_u8(
     let mut reader = Reader::new(Cursor::new(cached_image.image));
     reader.set_format(image::ImageFormat::Png);
     let image = reader.decode().unwrap();
-    let img = dither(image.to_luma8());
-
-    let img: RgbImage = img.into_rgb8();
+    let img = match color {
+        ImageColor::BLACK => dither(image.to_luma8()).into_rgb8(),
+        ImageColor::RED => image.into_rgb8(),
+    };
 
     // New Vec<u8> for pixel bytes
     let mut vec: Vec<u8> = Vec::new();
