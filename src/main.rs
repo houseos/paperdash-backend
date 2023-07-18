@@ -4,8 +4,9 @@ use std::io::Cursor;
 use std::sync::RwLock;
 use std::time::SystemTime;
 // Image manipulation
+use image::imageops::BiLevel;
 use image::io::Reader;
-use image::{Pixel, RgbImage};
+use image::{imageops, DynamicImage, ImageBuffer, Pixel, RgbImage};
 // Webserver & webencoding
 #[macro_use]
 extern crate rocket;
@@ -126,8 +127,11 @@ fn get_sub_bitmap_as_vec_u8(
     let cached_image: CachedImage = c.get(id).unwrap().clone();
     let mut reader = Reader::new(Cursor::new(cached_image.image));
     reader.set_format(image::ImageFormat::Png);
+    let image = reader.decode().unwrap();
+    let img = dither(image.to_luma8());
 
-    let img: RgbImage = reader.decode().unwrap().into_rgb8();
+    let img: RgbImage = img.into_rgb8();
+
     // New Vec<u8> for pixel bytes
     let mut vec: Vec<u8> = Vec::new();
     // For each row in the image, starting at y_offset until y_offset+y_len is reached
@@ -164,6 +168,12 @@ fn get_sub_bitmap_as_vec_u8(
     }
     // Return Vec<u8>
     vec
+}
+use image::Luma;
+fn dither(mut input: ImageBuffer<Luma<u8>, Vec<u8>>) -> DynamicImage {
+    let cmap = BiLevel;
+    imageops::dither(&mut input, &cmap);
+    DynamicImage::ImageLuma8(input.clone())
 }
 
 fn get_red_pixel_as_u8(img: &RgbImage, x: u32, y: u32) -> u8 {
