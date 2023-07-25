@@ -169,15 +169,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bmp"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69985ff4f58085ac696454692d0b646a66ad1f9cc9be294c91dc51bb5df511ae"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1224,7 +1215,6 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 name = "paperdash-backend"
 version = "0.1.0"
 dependencies = [
- "bmp",
  "headless_chrome",
  "image",
  "lazy_static",

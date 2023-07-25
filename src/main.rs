@@ -1,22 +1,35 @@
+use std::collections::HashMap;
 // Rust standard library
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::Path;
+use std::io::Cursor;
+use std::sync::RwLock;
 use std::time::SystemTime;
 // Image manipulation
+use image::imageops::BiLevel;
 use image::io::Reader;
-use image::{Pixel, RgbImage};
+use image::{imageops, DynamicImage, ImageBuffer, Luma, Pixel, RgbImage};
+
 // Webserver & webencoding
 #[macro_use]
 extern crate rocket;
+use lazy_static::lazy_static;
 use rocket::response::stream::ByteStream;
 use urlencoding::encode;
 // Our modules
 mod modules;
-use modules::config::{
-    get_website_ip, get_website_port, get_widgets_of_device, init_config, Widget,
-};
+use modules::config::{get_website_url, get_widgets_of_device, init_config, Widget};
 use modules::screenshot::take_screenshot;
+
+// struct to store image with metadata
+#[derive(Clone)]
+struct CachedImage {
+    timestamp: SystemTime,
+    image: Vec<u8>,
+}
+
+// hashmap storing cached images
+lazy_static! {
+    static ref CACHE: RwLock<HashMap<String, CachedImage>> = RwLock::new(HashMap::new());
+}
 
 /// Enum containing colors supported by e-paper display
 enum ImageColor {
@@ -110,13 +123,17 @@ fn get_sub_bitmap_as_vec_u8(
     id: &str,
 ) -> Vec<u8> {
     // Assemble filepath
-    let filename = format!("cache/img_{}.png", id.replace(':', "_"));
-    // Open file, decode and transform it into RGB8
-    let img: RgbImage = Reader::open(filename)
-        .unwrap()
-        .decode()
-        .unwrap()
-        .into_rgb8();
+    // Get image from cache
+    let c = CACHE.read().unwrap();
+    let cached_image: CachedImage = c.get(id).unwrap().clone();
+    let mut reader = Reader::new(Cursor::new(cached_image.image));
+    reader.set_format(image::ImageFormat::Png);
+    let image = reader.decode().unwrap();
+    let img = match color {
+        ImageColor::BLACK => dither(image.to_luma8()).into_rgb8(),
+        ImageColor::RED => image.into_rgb8(),
+    };
+
     // New Vec<u8> for pixel bytes
     let mut vec: Vec<u8> = Vec::new();
     // For each row in the image, starting at y_offset until y_offset+y_len is reached
@@ -155,6 +172,12 @@ fn get_sub_bitmap_as_vec_u8(
     vec
 }
 
+fn dither(mut input: ImageBuffer<Luma<u8>, Vec<u8>>) -> DynamicImage {
+    let cmap = BiLevel;
+    imageops::dither(&mut input, &cmap);
+    DynamicImage::ImageLuma8(input.clone())
+}
+
 fn get_red_pixel_as_u8(img: &RgbImage, x: u32, y: u32) -> u8 {
     let rgb = img.get_pixel(x, y).to_rgb();
     let r: u8 = rgb[0];
@@ -172,12 +195,12 @@ fn get_mono_pixel_as_u8(img: &RgbImage, x: u32, y: u32) -> u8 {
     let r: u8 = rgb[0];
     let g: u8 = rgb[1];
     let b: u8 = rgb[2];
-    if r > 10 || g > 10 || b > 10 {
+    if r > 250 || g > 250 || b > 250 {
         // Black
-        0
+        1
     } else {
         // White
-        1
+        0
     }
 }
 
@@ -199,39 +222,47 @@ async fn main() -> Result<(), rocket::Error> {
 fn screenshot_paperdash_website(id: &str) {
     let widgets: Vec<Widget> = get_widgets_of_device(id);
 
-    let filename: String = format!("cache/img_{}.png", id.replace(':', "_"));
-    if Path::new(&filename).exists() {
-        // check if file is older than 1min
-        let mut older = false;
-        let metadata = fs::metadata(&filename).unwrap();
-        if let Ok(time) = metadata.modified() {
-            let now = SystemTime::now();
-            let difference = now.duration_since(time).unwrap();
-            if difference.as_secs() > 60 {
-                older = true;
-            }
+    {
+        if !CACHE.read().unwrap().contains_key(id) {
+            screenshot(id, widgets);
+            return;
         }
+    }
+    {
+        // check if stored image is older than 1 min
+        let mut older = false;
+        let cached_timestamp = CACHE.read().unwrap().get(id).unwrap().timestamp;
+
+        let now = SystemTime::now();
+        let difference = now.duration_since(cached_timestamp).unwrap();
+        if difference.as_secs() > 60 {
+            older = true;
+        }
+
         // if file is older, take new screenshot
         if older {
-            screenshot(filename, widgets);
+            screenshot(id, widgets);
         }
-    } else {
-        screenshot(filename, widgets);
     }
 }
 
-fn screenshot(filename: String, widgets: Vec<Widget>) {
+fn screenshot(id: &str, widgets: Vec<Widget>) {
     let web_img = take_screenshot(
         format!(
-            "http://{}:{}/?widgets={}",
-            get_website_ip(),
-            get_website_port(),
+            "{}/?widgets={}",
+            get_website_url(),
             encode(&serde_json::to_string(&widgets).unwrap())
         )
         .to_string(),
         1304,
         984,
     );
-    let mut file = File::create(filename).unwrap();
-    file.write_all(web_img.as_slice()).unwrap();
+    let mut c = CACHE.write().unwrap();
+    c.insert(
+        id.to_string(),
+        CachedImage {
+            timestamp: SystemTime::now(),
+            image: web_img,
+        },
+    );
 }

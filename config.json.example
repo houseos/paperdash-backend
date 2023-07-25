@@ -1,0 +1,95 @@
+{
+    "website_url": "http://127.0.0.1:8080",
+    "devices": [
+        {
+            "id": "mac-adress",
+            "widgets": [
+                {
+                    "id": "welcome",
+                    "options": [
+                        {
+                            "id": "username",
+                            "value": "Bob"
+                        }
+                    ]
+                },
+                {
+                    "id": "srs",
+                    "options": [
+                        {
+                            "id": "location",
+                            "value": "location_number"
+                        }
+                    ]
+                },
+                {
+                    "id": "weather",
+                    "options": [
+                        {
+                            "id": "lat",
+                            "value": ""
+                        },
+                        {
+                            "id": "lng",
+                            "value": ""
+                        }
+                    ]
+                },
+                {
+                    "id": "joke",
+                    "options": [
+                        {
+                            "id": "category",
+                            "value": "Programming"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "*",
+            "widgets": [
+                {
+                    "id": "welcome",
+                    "options": [
+                        {
+                            "id": "username",
+                            "value": "Alice"
+                        }
+                    ]
+                },
+                {
+                    "id": "srs",
+                    "options": [
+                        {
+                            "id": "location",
+                            "value": "location_number"
+                        }
+                    ]
+                },
+                {
+                    "id": "weather",
+                    "options": [
+                        {
+                            "id": "lat",
+                            "value": ""
+                        },
+                        {
+                            "id": "lng",
+                            "value": ""
+                        }
+                    ]
+                },
+                {
+                    "id": "joke",
+                    "options": [
+                        {
+                            "id": "category",
+                            "value": "Programming"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
