@@ -1,4 +1,4 @@
-FROM rustlang/rust as build
+FROM rust as build
 WORKDIR /app
 COPY src Cargo.lock Cargo.toml .
 
