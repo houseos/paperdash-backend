@@ -6,7 +6,8 @@ use std::time::SystemTime;
 // Image manipulation
 use image::imageops::BiLevel;
 use image::io::Reader;
-use image::{imageops, DynamicImage, ImageBuffer, Pixel, RgbImage};
+use image::{imageops, DynamicImage, ImageBuffer, Luma, Pixel, RgbImage};
+
 // Webserver & webencoding
 #[macro_use]
 extern crate rocket;
@@ -170,7 +171,7 @@ fn get_sub_bitmap_as_vec_u8(
     // Return Vec<u8>
     vec
 }
-use image::Luma;
+
 fn dither(mut input: ImageBuffer<Luma<u8>, Vec<u8>>) -> DynamicImage {
     let cmap = BiLevel;
     imageops::dither(&mut input, &cmap);

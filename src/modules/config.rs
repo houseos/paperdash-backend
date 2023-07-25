@@ -37,7 +37,7 @@ lazy_static! {
 /// Initialize Config store
 pub fn init_config() {
     let mut config = CONFIG.write().unwrap();
-    *config = read_config_from_file("../config.json");
+    *config = read_config_from_file("./config.json");
 }
 
 fn read_config_from_file(path: &str) -> Config {
