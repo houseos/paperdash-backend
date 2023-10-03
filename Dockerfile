@@ -1,4 +1,4 @@
-FROM rust as build
+FROM rust:alpine as build
 WORKDIR /app
 COPY Cargo.lock Cargo.toml ./
 COPY src ./src
