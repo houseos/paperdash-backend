@@ -16,5 +16,4 @@ ENV ROCKET_ADDRESS 0.0.0.0
 
 EXPOSE 80
 
-ENTRYPOINT [ "/bin/bash", "-l", "-c" ]
 CMD ["/app/paperdash-backend"]
