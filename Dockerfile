@@ -1,4 +1,4 @@
-FROM rust:alpine as build
+FROM rust:slim-bookworm as build
 WORKDIR /app
 COPY Cargo.lock Cargo.toml ./
 COPY src ./src
