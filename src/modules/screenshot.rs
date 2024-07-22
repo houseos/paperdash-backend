@@ -6,7 +6,8 @@ use headless_chrome::{
 };
 
 pub fn take_screenshot(url: String, width: u32, height: u32) -> Vec<u8> {
-    let browser = Browser::default().unwrap();
+    let launch_options = LaunchOptions::default();
+    let browser = Browser::new(launch_options)?;
     let tab = browser
         .new_tab_with_options(CreateTarget {
             url,
