@@ -6,8 +6,10 @@ use headless_chrome::{
 };
 
 pub fn take_screenshot(url: String, width: u32, height: u32) -> Vec<u8> {
+    println!("Launching browser");
     let launch_options = LaunchOptions::default();
     let browser = Browser::new(launch_options).unwrap();
+    println!("Browser launched, opening url: {}", url);
     let tab = browser
         .new_tab_with_options(CreateTarget {
             url,
@@ -21,7 +23,7 @@ pub fn take_screenshot(url: String, width: u32, height: u32) -> Vec<u8> {
         .unwrap();
 
     tab.wait_until_navigated().unwrap();
-
+    println!("tab opened");
     thread::sleep(Duration::from_secs(2));
 
     // Take a screenshot of just the WebKit-Infobox
@@ -33,6 +35,6 @@ pub fn take_screenshot(url: String, width: u32, height: u32) -> Vec<u8> {
             true,
         )
         .unwrap();
-
+    println!("screenshot taken");
     image_data
 }
