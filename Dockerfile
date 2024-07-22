@@ -1,9 +1,8 @@
 FROM rust as build
 WORKDIR /app
 COPY Cargo.lock Cargo.toml ./
+RUN mkdir src && echo "// dummy file" > src/lib.rs && cargo fetch --locked && rm src/lib.rs
 COPY src ./src
-
-RUN cargo fetch --locked
 RUN cargo build --release
 
 FROM debian:bookworm-slim
