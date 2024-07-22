@@ -1,4 +1,4 @@
-use std::{thread, time::Duration};
+use std::{ffi::OsStr, thread, time::Duration};
 
 use headless_chrome::{
     protocol::cdp::{Page, Target::CreateTarget},
@@ -7,7 +7,10 @@ use headless_chrome::{
 
 pub fn take_screenshot(url: String, width: u32, height: u32) -> Vec<u8> {
     println!("Launching browser");
-    let launch_options = LaunchOptions::default();
+    let mut launch_options = LaunchOptions::default();
+    launch_options.enable_logging = true;
+    launch_options.sandbox = false;
+    launch_options.args.push(OsStr::new("--disable-web-security"));
     let browser = Browser::new(launch_options).unwrap();
     println!("Browser launched, opening url: {}", url);
     let tab = browser
