@@ -2,12 +2,12 @@ use std::{thread, time::Duration};
 
 use headless_chrome::{
     protocol::cdp::{Page, Target::CreateTarget},
-    Browser,
+    Browser, LaunchOptions,
 };
 
 pub fn take_screenshot(url: String, width: u32, height: u32) -> Vec<u8> {
     let launch_options = LaunchOptions::default();
-    let browser = Browser::new(launch_options)?;
+    let browser = Browser::new(launch_options).unwrap();
     let tab = browser
         .new_tab_with_options(CreateTarget {
             url,
