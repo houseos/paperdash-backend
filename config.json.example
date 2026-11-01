@@ -1,95 +1,35 @@
 {
-    "website_url": "http://127.0.0.1:8080",
-    "devices": [
+  "website_url": "http://127.0.0.1:8080",
+  "devices": [
+    {
+      "id": "00:11:22:33:44:55",
+      "widgets": [
         {
-            "id": "mac-adress",
-            "widgets": [
-                {
-                    "id": "welcome",
-                    "options": [
-                        {
-                            "id": "username",
-                            "value": "Bob"
-                        }
-                    ]
-                },
-                {
-                    "id": "srs",
-                    "options": [
-                        {
-                            "id": "location",
-                            "value": "location_number"
-                        }
-                    ]
-                },
-                {
-                    "id": "weather",
-                    "options": [
-                        {
-                            "id": "lat",
-                            "value": ""
-                        },
-                        {
-                            "id": "lng",
-                            "value": ""
-                        }
-                    ]
-                },
-                {
-                    "id": "joke",
-                    "options": [
-                        {
-                            "id": "category",
-                            "value": "Programming"
-                        }
-                    ]
-                }
-            ]
+          "id": "text",
+          "options": [{ "id": "text", "value": "# Hello\nDashboard is online." }]
         },
         {
-            "id": "*",
-            "widgets": [
-                {
-                    "id": "welcome",
-                    "options": [
-                        {
-                            "id": "username",
-                            "value": "Alice"
-                        }
-                    ]
-                },
-                {
-                    "id": "srs",
-                    "options": [
-                        {
-                            "id": "location",
-                            "value": "location_number"
-                        }
-                    ]
-                },
-                {
-                    "id": "weather",
-                    "options": [
-                        {
-                            "id": "lat",
-                            "value": ""
-                        },
-                        {
-                            "id": "lng",
-                            "value": ""
-                        }
-                    ]
-                },
-                {
-                    "id": "joke",
-                    "options": [
-                        {
-                            "id": "category",
-                            "value": "Programming"
-                        }
-                    ]
-                }
-            ]
+          "id": "weather",
+          "options": [
+            { "id": "cityid", "value": "2643743" },
+            { "id": "apikey", "value": "your-openweathermap-api-key" }
+          ]
+        },
+        {
+          "id": "srs",
+          "options": [{ "id": "location", "value": "24900" }]
+        },
+        { "id": "joke", "options": [] }
+      ]
+    },
+    {
+      "id": "*",
+      "widgets": [
+        {
+          "id": "text",
+          "options": [{ "id": "text", "value": "# Paperdash\nConfigure this device in config.json." }]
         }
-    ]
+      ]
+    }
+  ]
 }

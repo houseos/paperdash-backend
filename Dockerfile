@@ -6,13 +6,14 @@ COPY src ./src
 RUN cargo build --release
 
 FROM debian:bookworm-slim
-RUN apt update && apt install libgtk-3-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 -y
+RUN apt-get update && apt-get install -y --no-install-recommends chromium libnss3 libxss1 libasound2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/target/release/paperdash-backend /app/
 RUN chmod +x /app/paperdash-backend
 
 ENV ROCKET_PORT 80
 ENV ROCKET_ADDRESS 0.0.0.0
+ENV CHROME /usr/bin/chromium
 
 EXPOSE 80
 

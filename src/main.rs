@@ -5,14 +5,13 @@ use std::sync::RwLock;
 use std::time::SystemTime;
 // Image manipulation
 use image::imageops::BiLevel;
-use image::io::Reader;
+use image::ImageReader;
 use image::{imageops, DynamicImage, ImageBuffer, Luma, Pixel, RgbImage};
 
 // Webserver & webencoding
 #[macro_use]
 extern crate rocket;
 use lazy_static::lazy_static;
-use rocket::response::stream::ByteStream;
 use urlencoding::encode;
 // Our modules
 mod modules;
@@ -24,6 +23,13 @@ use modules::screenshot::take_screenshot;
 struct CachedImage {
     timestamp: SystemTime,
     image: Vec<u8>,
+}
+
+fn cache_is_stale(cached: Option<&CachedImage>, now: SystemTime) -> bool {
+    cached.is_none_or(|image| {
+        now.duration_since(image.timestamp)
+            .is_ok_and(|age| age > std::time::Duration::from_secs(60))
+    })
 }
 
 // hashmap storing cached images
@@ -39,73 +45,49 @@ enum ImageColor {
 // black&white image routes
 
 #[get("/s2/bw?<id>")]
-fn s2_bw(id: &str) -> ByteStream![Vec<u8>] {
+fn s2_bw(id: &str) -> Vec<u8> {
     screenshot_paperdash_website(id);
-    let bytes = get_sub_bitmap_as_vec_u8(0, 648, 0, 492, ImageColor::BLACK, id);
-    ByteStream! {
-        yield bytes
-    }
+    get_sub_bitmap_as_vec_u8(0, 648, 0, 492, ImageColor::BLACK, id)
 }
 
 #[get("/m2/bw?<id>")]
-fn m2_bw(id: &str) -> ByteStream![Vec<u8>] {
+fn m2_bw(id: &str) -> Vec<u8> {
     screenshot_paperdash_website(id);
-    let bytes = get_sub_bitmap_as_vec_u8(648, 656, 0, 492, ImageColor::BLACK, id);
-    ByteStream! {
-        yield bytes
-    }
+    get_sub_bitmap_as_vec_u8(648, 656, 0, 492, ImageColor::BLACK, id)
 }
 #[get("/m1/bw?<id>")]
-fn m1_bw(id: &str) -> ByteStream![Vec<u8>] {
+fn m1_bw(id: &str) -> Vec<u8> {
     screenshot_paperdash_website(id);
-    let bytes = get_sub_bitmap_as_vec_u8(0, 648, 492, 492, ImageColor::BLACK, id);
-    ByteStream! {
-        yield bytes
-    }
+    get_sub_bitmap_as_vec_u8(0, 648, 492, 492, ImageColor::BLACK, id)
 }
 #[get("/s1/bw?<id>")]
-fn s1_bw(id: &str) -> ByteStream![Vec<u8>] {
+fn s1_bw(id: &str) -> Vec<u8> {
     screenshot_paperdash_website(id);
-    let bytes = get_sub_bitmap_as_vec_u8(648, 656, 492, 492, ImageColor::BLACK, id);
-    ByteStream! {
-        yield bytes
-    }
+    get_sub_bitmap_as_vec_u8(648, 656, 492, 492, ImageColor::BLACK, id)
 }
 
 // red image routes
 
 #[get("/s2/r?<id>")]
-fn s2_r(id: &str) -> ByteStream![Vec<u8>] {
+fn s2_r(id: &str) -> Vec<u8> {
     screenshot_paperdash_website(id);
-    let bytes = get_sub_bitmap_as_vec_u8(0, 648, 0, 492, ImageColor::RED, id);
-    ByteStream! {
-        yield bytes
-    }
+    get_sub_bitmap_as_vec_u8(0, 648, 0, 492, ImageColor::RED, id)
 }
 
 #[get("/m2/r?<id>")]
-fn m2_r(id: &str) -> ByteStream![Vec<u8>] {
+fn m2_r(id: &str) -> Vec<u8> {
     screenshot_paperdash_website(id);
-    let bytes = get_sub_bitmap_as_vec_u8(648, 656, 0, 492, ImageColor::RED, id);
-    ByteStream! {
-        yield bytes
-    }
+    get_sub_bitmap_as_vec_u8(648, 656, 0, 492, ImageColor::RED, id)
 }
 #[get("/m1/r?<id>")]
-fn m1_r(id: &str) -> ByteStream![Vec<u8>] {
+fn m1_r(id: &str) -> Vec<u8> {
     screenshot_paperdash_website(id);
-    let bytes = get_sub_bitmap_as_vec_u8(0, 648, 492, 492, ImageColor::RED, id);
-    ByteStream! {
-        yield bytes
-    }
+    get_sub_bitmap_as_vec_u8(0, 648, 492, 492, ImageColor::RED, id)
 }
 #[get("/s1/r?<id>")]
-fn s1_r(id: &str) -> ByteStream![Vec<u8>] {
+fn s1_r(id: &str) -> Vec<u8> {
     screenshot_paperdash_website(id);
-    let bytes = get_sub_bitmap_as_vec_u8(648, 656, 492, 492, ImageColor::RED, id);
-    ByteStream! {
-        yield bytes
-    }
+    get_sub_bitmap_as_vec_u8(648, 656, 492, 492, ImageColor::RED, id)
 }
 
 /// Retrieve a Vec<u8> that contains the pixels of an image
@@ -122,13 +104,23 @@ fn get_sub_bitmap_as_vec_u8(
     color: ImageColor,
     id: &str,
 ) -> Vec<u8> {
-    // Assemble filepath
-    // Get image from cache
-    let c = CACHE.read().unwrap();
-    let cached_image: CachedImage = c.get(id).unwrap().clone();
-    let mut reader = Reader::new(Cursor::new(cached_image.image));
+    let Some(cached_image) = CACHE.read().unwrap().get(id).cloned() else {
+        return vec![0xff; (x_len.div_ceil(8) * y_len) as usize];
+    };
+    let mut reader = ImageReader::new(Cursor::new(cached_image.image));
     reader.set_format(image::ImageFormat::Png);
-    let image = reader.decode().unwrap();
+    let Ok(image) = reader.decode() else {
+        return vec![0xff; (x_len.div_ceil(8) * y_len) as usize];
+    };
+    let Some(x_end) = x_offset.checked_add(x_len) else {
+        return vec![0xff; (x_len.div_ceil(8) * y_len) as usize];
+    };
+    let Some(y_end) = y_offset.checked_add(y_len) else {
+        return vec![0xff; (x_len.div_ceil(8) * y_len) as usize];
+    };
+    if x_end > image.width() || y_end > image.height() {
+        return vec![0xff; (x_len.div_ceil(8) * y_len) as usize];
+    }
     let img = match color {
         ImageColor::BLACK => dither(image.to_luma8()).into_rgb8(),
         ImageColor::RED => image.into_rgb8(),
@@ -228,26 +220,14 @@ fn screenshot_paperdash_website(id: &str) {
             return;
         }
     }
-    {
-        // check if stored image is older than 1 min
-        let mut older = false;
-        let cached_timestamp = CACHE.read().unwrap().get(id).unwrap().timestamp;
-
-        let now = SystemTime::now();
-        let difference = now.duration_since(cached_timestamp).unwrap();
-        if difference.as_secs() > 60 {
-            older = true;
-        }
-
-        // if file is older, take new screenshot
-        if older {
-            screenshot(id, widgets);
-        }
+    let stale = cache_is_stale(CACHE.read().unwrap().get(id), SystemTime::now());
+    if stale {
+        screenshot(id, widgets);
     }
 }
 
 fn screenshot(id: &str, widgets: Vec<Widget>) {
-    let web_img = take_screenshot(
+    let web_img = match take_screenshot(
         format!(
             "{}/?widgets={}",
             get_website_url(),
@@ -256,7 +236,13 @@ fn screenshot(id: &str, widgets: Vec<Widget>) {
         .to_string(),
         1304,
         984,
-    );
+    ) {
+        Ok(image) => image,
+        Err(error) => {
+            eprintln!("Could not capture dashboard for {id}: {error}");
+            return;
+        }
+    };
     let mut c = CACHE.write().unwrap();
     c.insert(
         id.to_string(),
@@ -265,4 +251,143 @@ fn screenshot(id: &str, widgets: Vec<Widget>) {
             image: web_img,
         },
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{ImageFormat, Rgb};
+
+    fn cache_test_image(id: &str, image: DynamicImage) {
+        let mut png = Cursor::new(Vec::new());
+        image.write_to(&mut png, ImageFormat::Png).unwrap();
+        CACHE.write().unwrap().insert(
+            id.to_string(),
+            CachedImage {
+                timestamp: SystemTime::now(),
+                image: png.into_inner(),
+            },
+        );
+    }
+
+    #[test]
+    fn packs_white_and_black_pixels_most_significant_bit_first() {
+        let id = "test-monochrome-packing";
+        let image = ImageBuffer::from_fn(8, 1, |x, _| {
+            if x < 4 {
+                Rgb([255, 255, 255])
+            } else {
+                Rgb([0, 0, 0])
+            }
+        });
+        cache_test_image(id, DynamicImage::ImageRgb8(image));
+
+        let bytes = get_sub_bitmap_as_vec_u8(0, 8, 0, 1, ImageColor::BLACK, id);
+
+        assert_eq!(bytes, [0xf0]);
+        CACHE.write().unwrap().remove(id);
+    }
+
+    #[test]
+    fn red_plane_marks_only_red_pixels() {
+        let id = "test-red-plane";
+        let image = ImageBuffer::from_fn(8, 1, |x, _| match x {
+            0 => Rgb([255, 0, 0]),
+            1 => Rgb([200, 20, 10]),
+            2 => Rgb([255, 0, 255]),
+            3 => Rgb([255, 100, 0]),
+            _ => Rgb([0, 0, 0]),
+        });
+        cache_test_image(id, DynamicImage::ImageRgb8(image));
+
+        let bytes = get_sub_bitmap_as_vec_u8(0, 8, 0, 1, ImageColor::RED, id);
+
+        assert_eq!(bytes, [0xd0]);
+        CACHE.write().unwrap().remove(id);
+    }
+
+    #[test]
+    fn encodes_all_four_panel_quadrants_at_controller_widths() {
+        let id = "test-panel-quadrants";
+        let image = ImageBuffer::from_fn(1304, 984, |x, y| {
+            if (x < 648 && y < 492) || (x >= 648 && y >= 492) {
+                Rgb([255, 0, 0])
+            } else {
+                Rgb([0, 0, 0])
+            }
+        });
+        cache_test_image(id, DynamicImage::ImageRgb8(image));
+
+        let s2 = get_sub_bitmap_as_vec_u8(0, 648, 0, 492, ImageColor::RED, id);
+        let m2 = get_sub_bitmap_as_vec_u8(648, 656, 0, 492, ImageColor::RED, id);
+        let m1 = get_sub_bitmap_as_vec_u8(0, 648, 492, 492, ImageColor::RED, id);
+        let s1 = get_sub_bitmap_as_vec_u8(648, 656, 492, 492, ImageColor::RED, id);
+
+        assert_eq!(s2.len(), 81 * 492);
+        assert_eq!(m2.len(), 82 * 492);
+        assert_eq!(m1.len(), 81 * 492);
+        assert_eq!(s1.len(), 82 * 492);
+        assert_eq!(s2[0], 0xff);
+        assert_eq!(m2[0], 0x00);
+        assert_eq!(m1[0], 0x00);
+        assert_eq!(s1[0], 0xff);
+        CACHE.write().unwrap().remove(id);
+    }
+
+    #[test]
+    fn missing_or_invalid_cached_png_returns_white_pixels() {
+        let missing = "test-missing-cache-entry";
+        let invalid = "test-invalid-cache-entry";
+        CACHE.write().unwrap().insert(
+            invalid.to_string(),
+            CachedImage {
+                timestamp: SystemTime::now(),
+                image: b"not a png".to_vec(),
+            },
+        );
+
+        assert_eq!(
+            get_sub_bitmap_as_vec_u8(0, 16, 0, 2, ImageColor::RED, missing),
+            [0xff; 4]
+        );
+        assert_eq!(
+            get_sub_bitmap_as_vec_u8(0, 16, 0, 2, ImageColor::BLACK, invalid),
+            [0xff; 4]
+        );
+        let mut cache = CACHE.write().unwrap();
+        cache.remove(invalid);
+        cache.remove(missing);
+    }
+
+    #[test]
+    fn undersized_png_returns_white_pixels_instead_of_panicking() {
+        let id = "test-undersized-cache-entry";
+        cache_test_image(
+            id,
+            DynamicImage::ImageRgb8(ImageBuffer::from_pixel(7, 1, Rgb([0, 0, 0]))),
+        );
+
+        assert_eq!(
+            get_sub_bitmap_as_vec_u8(0, 8, 0, 1, ImageColor::BLACK, id),
+            [0xff]
+        );
+        CACHE.write().unwrap().remove(id);
+    }
+
+    #[test]
+    fn screenshot_cache_expires_after_one_minute() {
+        let now = SystemTime::now();
+        let fresh = CachedImage {
+            timestamp: now - std::time::Duration::from_secs(60),
+            image: Vec::new(),
+        };
+        let just_expired = CachedImage {
+            timestamp: now - std::time::Duration::from_millis(60_001),
+            image: Vec::new(),
+        };
+
+        assert!(cache_is_stale(None, now));
+        assert!(!cache_is_stale(Some(&fresh), now));
+        assert!(cache_is_stale(Some(&just_expired), now));
+    }
 }

@@ -37,6 +37,11 @@ Device IDs are matched case-insensitively. An exact ID takes precedence; `*`
 is used when no exact match exists. Widget options use `{ "id", "value" }`
 entries, and `value` is a string. Supported widget IDs and their options are
 documented in [`../paperdash-ui/README.md`](../paperdash-ui/README.md).
+The repository's [`config.json.example`](config.json.example) uses widget IDs
+and option names accepted by the current UI; copy it to `config.json` and edit
+the device IDs and values for your installation. Its sample UI URL uses port
+8080; set the URL to the actual UI port (or the UI container's port on a shared
+Docker network) for your setup.
 
 The firmware identifies itself with its Wi-Fi MAC address, formatted as
 colon-separated hexadecimal. Set `website_url` to a UI address reachable from
@@ -48,6 +53,44 @@ automatically. The Dockerfile sets `CHROME=/usr/bin/chromium`, listens on port
 80 inside its container, and installs Chromium. When running locally, Rocket
 defaults to port 8000; Rocket's standard environment variables, such as
 `ROCKET_PORT` and `ROCKET_ADDRESS`, can override its bind settings.
+For a locally run backend that must accept requests from an ESP32 on the LAN,
+bind to all interfaces, for example:
+
+```sh
+ROCKET_ADDRESS=0.0.0.0 cargo run
+```
+
+Allow the selected port through the host firewall. Binding to `0.0.0.0` does
+not add authentication or encryption; see the security notes below.
+
+## Docker
+
+Build the image from this directory. The image intentionally does not contain
+your device configuration, so mount `config.json` at `/app/config.json` when
+starting it. For a shared Docker network named `paperdash`, configure
+`website_url` as `http://paperdash-ui:80`. Build and start the UI on that
+network using the [UI Docker instructions](../paperdash-ui/README.md#quality-checks-and-production-build).
+Create the network before starting either container:
+
+```sh
+cp config.json.example config.json
+# Edit website_url and device/widget settings in config.json first.
+docker network create paperdash
+docker build -t paperdash-ui ../paperdash-ui
+docker run -d --name paperdash-ui --network paperdash -p 8080:80 paperdash-ui
+docker build -t paperdash-backend .
+docker run -d --name paperdash-backend --network paperdash \
+  -p 8000:80 \
+  -v "$PWD/config.json:/app/config.json:ro" \
+  paperdash-backend
+```
+
+Set the firmware backend host to the Docker host's LAN address and port `8000`.
+The UI address in `config.json` is different: it must resolve from inside the
+backend container. The backend loads configuration once at startup, so restart
+the container after changing the file. The GitHub Actions workflow builds and
+publishes the image to
+`ghcr.io/<owner>/<repository>` when changes are pushed to `main`.
 
 ## Run Locally
 
@@ -108,6 +151,15 @@ logged and is not cached. Image route handlers currently return white fallback
 bytes if the cache is absent, the PNG cannot be decoded, or a requested region
 is outside the screenshot bounds. Check backend logs and route payloads if a
 display region is blank.
+
+## Security Notes
+
+The image routes use plain HTTP and have no authentication; anyone who can reach
+the service can request configured device images. Keep the service on a trusted
+network or restrict access with network policy/reverse-proxy controls. Chromium
+is launched with its sandbox and browser web-security checks disabled for
+screenshot compatibility. Only point it at a UI instance and widget content you
+trust, and do not expose this backend directly to the public internet.
 
 ## Tests and Source Map
 
