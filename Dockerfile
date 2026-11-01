@@ -1,19 +1,19 @@
-FROM rust as build
+FROM rust:bookworm AS build
 WORKDIR /app
 COPY Cargo.lock Cargo.toml ./
 RUN mkdir src && echo "// dummy file" > src/lib.rs && cargo fetch --locked && rm src/lib.rs
 COPY src ./src
-RUN cargo build --release
+RUN cargo build --release --locked
 
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends chromium libnss3 libxss1 libasound2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/target/release/paperdash-backend /app/
 RUN chmod +x /app/paperdash-backend
 
-ENV ROCKET_PORT 80
-ENV ROCKET_ADDRESS 0.0.0.0
-ENV CHROME /usr/bin/chromium
+ENV ROCKET_PORT=80
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV CHROME=/usr/bin/chromium
 
 EXPOSE 80
 

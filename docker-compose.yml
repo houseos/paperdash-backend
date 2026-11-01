@@ -1,0 +1,25 @@
+services:
+  paperdash-ui:
+    build:
+      context: ../paperdash-ui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - paperdash
+
+  paperdash-backend:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      - paperdash-ui
+    ports:
+      - "127.0.0.1:8000:80"
+    volumes:
+      - ./config.json:/app/config.json:ro
+    networks:
+      - paperdash
+
+networks:
+  paperdash:

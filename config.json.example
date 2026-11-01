@@ -1,5 +1,5 @@
 {
-  "website_url": "http://127.0.0.1:8080",
+  "website_url": "http://paperdash-ui:80",
   "devices": [
     {
       "id": "00:11:22:33:44:55",

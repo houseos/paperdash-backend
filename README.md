@@ -39,9 +39,9 @@ entries, and `value` is a string. Supported widget IDs and their options are
 documented in [`../paperdash-ui/README.md`](../paperdash-ui/README.md).
 The repository's [`config.json.example`](config.json.example) uses widget IDs
 and option names accepted by the current UI; copy it to `config.json` and edit
-the device IDs and values for your installation. Its sample UI URL uses port
-8080; set the URL to the actual UI port (or the UI container's port on a shared
-Docker network) for your setup.
+the device IDs and values for your installation. In Docker, use the UI service
+name and container port, `http://paperdash-ui:80`, so Chromium reaches the UI
+over the private Docker network rather than going out through the public host.
 
 The firmware identifies itself with its Wi-Fi MAC address, formatted as
 colon-separated hexadecimal. Set `website_url` to a UI address reachable from
@@ -63,33 +63,31 @@ ROCKET_ADDRESS=0.0.0.0 cargo run
 Allow the selected port through the host firewall. Binding to `0.0.0.0` does
 not add authentication or encryption; see the security notes below.
 
-## Docker
+## Production HTTPS and Docker
 
-Build the image from this directory. The image intentionally does not contain
-your device configuration, so mount `config.json` at `/app/config.json` when
-starting it. For a shared Docker network named `paperdash`, configure
-`website_url` as `http://paperdash-ui:80`. Build and start the UI on that
-network using the [UI Docker instructions](../paperdash-ui/README.md#quality-checks-and-production-build).
-Create the network before starting either container:
+Terminate HTTPS at a reverse proxy (for example, Caddy, Traefik, or Nginx) with
+certificates for `paperdash.b15g.de` and `paperdash-backend.b15g.de`. Route the
+UI host to `127.0.0.1:8080` and the backend host to `127.0.0.1:8000`. Keep the
+backend's Rocket listener on plain HTTP behind the proxy; the ESP32 connects to
+`https://paperdash-backend.b15g.de` on port 443, while the backend uses
+`http://paperdash-ui:80` internally for screenshots. Do not publish the
+containers' port 80 directly to the internet.
+
+The Compose file builds both images, places them on a private network, binds
+their host ports to loopback for the reverse proxy, and mounts your device
+configuration read-only. Create/edit `config.json` first, then run from this
+directory:
 
 ```sh
 cp config.json.example config.json
-# Edit website_url and device/widget settings in config.json first.
-docker network create paperdash
-docker build -t paperdash-ui ../paperdash-ui
-docker run -d --name paperdash-ui --network paperdash -p 8080:80 paperdash-ui
-docker build -t paperdash-backend .
-docker run -d --name paperdash-backend --network paperdash \
-  -p 8000:80 \
-  -v "$PWD/config.json:/app/config.json:ro" \
-  paperdash-backend
+docker compose up --build -d
 ```
 
-Set the firmware backend host to the Docker host's LAN address and port `8000`.
-The UI address in `config.json` is different: it must resolve from inside the
-backend container. The backend loads configuration once at startup, so restart
-the container after changing the file. The GitHub Actions workflow builds and
-publishes the image to
+Point the firmware to `paperdash-backend.b15g.de`, port `443`, with TLS enabled
+(the defaults in `prj.conf`). Ensure both DNS records point to the reverse
+proxy and that the proxy can access the loopback ports. The backend loads
+configuration once at startup, so restart it after changing the file. The
+GitHub Actions workflow builds and publishes the image to
 `ghcr.io/<owner>/<repository>` when changes are pushed to `main`.
 
 ## Run Locally
@@ -154,12 +152,13 @@ display region is blank.
 
 ## Security Notes
 
-The image routes use plain HTTP and have no authentication; anyone who can reach
-the service can request configured device images. Keep the service on a trusted
-network or restrict access with network policy/reverse-proxy controls. Chromium
-is launched with its sandbox and browser web-security checks disabled for
-screenshot compatibility. Only point it at a UI instance and widget content you
-trust, and do not expose this backend directly to the public internet.
+The backend's internal image routes use plain HTTP and have no authentication;
+the reverse proxy provides public HTTPS transport but does not add
+authentication. Anyone who can reach the backend hostname can request device
+images, so apply suitable proxy rate/access controls if that is a concern.
+Chromium is launched with its sandbox and browser web-security checks disabled
+for screenshot compatibility. Only point it at a UI instance and widget content
+you trust.
 
 ## Tests and Source Map
 
